@@ -1,4 +1,6 @@
-package network;
+package word_chain.server;
+
+import word_chain.client.ClientHandler;
 
 import java.net.*;
 import java.io.*;

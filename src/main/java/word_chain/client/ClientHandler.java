@@ -1,15 +1,15 @@
-package network;
+package word_chain.client;
 
 import java.io.*;
 import java.net.*;
 
 public class ClientHandler implements Runnable {
     private Socket clientSocket;
-    private Server server; // 서버 인스턴스 참조
+    private network.Server server; // 서버 인스턴스 참조
     private int clientId; // 클라이언트 고유 ID
     private boolean isActive = false; // 활성/대기 상태
 
-    public ClientHandler(Socket clientSocket, Server server, int clientId) {
+    public ClientHandler(Socket clientSocket, network.Server server, int clientId) {
         this.clientSocket = clientSocket;
         this.server = server;
         this.clientId = clientId;
@@ -43,8 +43,8 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try (
-            BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)
+                BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)
         ) {
             writer.println("서버에 연결되었습니다! 당신의 순번은: " + clientId);
 

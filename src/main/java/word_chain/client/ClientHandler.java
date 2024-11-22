@@ -1,15 +1,17 @@
 package word_chain.client;
 
+import word_chain.server.Server;
+
 import java.io.*;
 import java.net.*;
 
 public class ClientHandler implements Runnable {
     private Socket clientSocket;
-    private network.Server server; // 서버 인스턴스 참조
+    private Server server; // 서버 인스턴스 참조
     private int clientId; // 클라이언트 고유 ID
     private boolean isActive = false; // 활성/대기 상태
 
-    public ClientHandler(Socket clientSocket, network.Server server, int clientId) {
+    public ClientHandler(Socket clientSocket, Server server, int clientId) {
         this.clientSocket = clientSocket;
         this.server = server;
         this.clientId = clientId;

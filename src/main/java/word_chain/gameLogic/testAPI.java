@@ -1,6 +1,6 @@
 package word_chain.gameLogic;
 
-public class Main {
+public class testAPI {
     public static void main(String[] args) {
         DictionaryAPI dictionaryAPI = new DictionaryAPI();
 

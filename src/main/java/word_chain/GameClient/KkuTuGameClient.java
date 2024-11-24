@@ -1,3 +1,5 @@
+package word_chain.GameClient;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;

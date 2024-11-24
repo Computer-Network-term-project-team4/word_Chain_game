@@ -21,7 +21,7 @@ public class ClientHandler implements Runnable {
     public void setActive(boolean isActive) {
         this.isActive = isActive;
     }
-
+    //Test 12313h23h212u1
     // 클라이언트에게 메시지 전송
     public void sendMessage(String message) {
         try {

@@ -1,7 +1,5 @@
 package word_chain.server;
 
-import word_chain.client.ClientHandler;
-
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
@@ -17,7 +15,7 @@ public class Server {
     private int clientIdCounter = 1; // 클라이언트 고유 ID 부여용 카운터
     private List<ClientHandler> clients = new ArrayList<>(); // 연결된 클라이언트 목록
     private boolean isRunning = true; // 서버 실행 상태
-
+    private final File nicknameFile = new File("nickname.txt");
     public static void main(String[] args) {
         new Server().startServer(); // 서버 실행
     }
@@ -73,6 +71,21 @@ public class Server {
             }
         }
     }
+
+    /**
+     * 클라이언트에서 닉네임 저장 요청을 처리합니다.
+     * - nickname.txt 파일에 저장
+     */
+    public synchronized void saveNickname(String nickname) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(nicknameFile, true))) {
+            writer.write(nickname); // 닉네임을 파일에 작성
+            writer.newLine(); // 새 줄 추가
+            System.out.println("닉네임 저장됨: " + nickname); // 로그 출력
+        } catch (IOException e) {
+            System.err.println("닉네임 저장 실패: " + e.getMessage()); // 오류 메시지 출력
+        }
+    }
+
 
     /**
      * 콘솔 입력 감시

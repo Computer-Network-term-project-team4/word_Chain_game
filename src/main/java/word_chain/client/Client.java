@@ -11,6 +11,10 @@ public class Client {
     private static final String SERVER_ADDRESS = "localhost"; // 서버 주소 (현재는 로컬 PC로 연결)
     private static final int SERVER_PORT = 12345; // 서버가 수신 대기 중인 포트 번호
 
+    /**
+     * 클라이언트 프로그램
+     * - 서버에 연결하여 사용자 입력을 전송하고 서버로부터 응답을 수신
+     */
     public static void main(String[] args) {
         // 서버와 연결 시도
         try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT)) { // 서버 소켓 생성
@@ -21,9 +25,15 @@ public class Client {
             PrintWriter serverWriter = new PrintWriter(socket.getOutputStream(), true); // 서버로 데이터 전송
             BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in)); // 사용자 입력 처리
 
-            // 서버에서 초기 메시지 수신 및 출력
-            String serverMessage = serverReader.readLine(); // 서버로부터 메시지를 읽음
-            System.out.println("서버 메시지: " + serverMessage);
+            // 닉네임 입력 및 전송
+            String serverMessage = serverReader.readLine(); // 서버로부터 닉네임 요청 메시지 수신
+            System.out.println(serverMessage); // 닉네임 입력 요청 메시지 출력
+            String nickname = userInput.readLine(); // 사용자로부터 닉네임 입력받기
+            serverWriter.println(nickname); // 닉네임을 서버로 전송
+
+            // 서버의 환영 메시지 출력
+            serverMessage = serverReader.readLine(); // 서버에서 환영 메시지 수신
+            System.out.println("서버 메시지: " + serverMessage); // 환영 메시지 출력
 
             // 사용자 입력을 서버로 전송하고 서버 응답을 출력
             String userMessage;

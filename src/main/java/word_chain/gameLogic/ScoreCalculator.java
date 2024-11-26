@@ -6,7 +6,7 @@ public class ScoreCalculator {
         word = word.toLowerCase();
 
         // 기본 점수는 글자의 길이로 점수 얻음
-        int baseScore = word.length();
+        int baseScore = word.length() * 5;
 
         // 추가 점수: 길이를 5로 나눈 몫을 점수에 추가
         baseScore += word.length() / 5;

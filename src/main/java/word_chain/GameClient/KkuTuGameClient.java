@@ -2,8 +2,6 @@ package word_chain.GameClient;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.ExecutorService;
@@ -20,7 +18,7 @@ public class KkuTuGameClient {
     private ExecutorService threadPool;   // multithread
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(KkuTuGameClient::new);
+        SwingUtilities.invokeLater(KkuTuGameClient_test::new);
     }
 
     public KkuTuGameClient() {

@@ -6,6 +6,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Server_test 클래스
@@ -21,6 +22,9 @@ public class Server_test {
 
     // 최대 턴 수 (게임 종료 조건)
     private static final int MAX_TURNS = 5;
+
+    // 각 턴의 제한 시간 (초)
+    private static final int TURN_TIME_LIMIT = 30;
 
     // 클라이언트 목록 (현재 연결된 클라이언트 핸들러)
     private final List<ClientHandler_test> clients = new ArrayList<>();
@@ -43,8 +47,8 @@ public class Server_test {
     // 남은 턴 수
     private int remainingTurns = MAX_TURNS;
 
-    // 현재 플레이어의 제한 시간 (초 단위)
-    private int timeLeft;
+    // 남은 시간 관리 (AtomicInteger 사용)
+    private AtomicInteger remainingTime = new AtomicInteger(TURN_TIME_LIMIT);
 
     // 마지막 단어 (게임 진행 중 유지됨)
     private String lastWord = null;
@@ -54,8 +58,6 @@ public class Server_test {
 
     // 제한 시간 타이머 작업 추적
     private ScheduledFuture<?> timeUpdateTask;
-    // 닉네임 카운터
-    private int count;
 
     /**
      * 서버의 메인 메서드
@@ -80,17 +82,29 @@ public class Server_test {
      * @param client 제거할 클라이언트 핸들러
      */
     public synchronized void removeClient(ClientHandler_test client) {
+        int removedIndex = clients.indexOf(client);
         clients.remove(client); // 리스트에서 클라이언트 제거
+
+        // 해당 클라이언트에게도 메시지 전송
+        client.sendMessage("당신은 게임에서 나갔습니다.");
+
         broadcast(client.getNickname() + " 님이 나갔습니다."); // 클라이언트 퇴장 메시지 브로드캐스트
         System.out.println("클라이언트 연결 종료: 닉네임 = " + client.getNickname());
 
         // 모든 클라이언트가 나간 경우 게임 종료
         if (clients.isEmpty()) {
             endGame();
-        } else if (clients.indexOf(client) == currentPlayerIndex) {
-            // 현재 턴의 플레이어가 나간 경우 다음 턴으로 이동
-            currentPlayerIndex = currentPlayerIndex % clients.size();
-            nextTurn();
+        } else {
+            // 현재 턴의 플레이어가 나간 경우 다음 플레이어로 이동
+            if (removedIndex == currentPlayerIndex) {
+                currentPlayerIndex = currentPlayerIndex % clients.size();
+                nextTurn();
+            } else if (removedIndex < currentPlayerIndex) {
+                currentPlayerIndex--; // 인덱스 조정
+            }
+
+            // 남은 턴 수 업데이트 및 클라이언트에게 전송
+            sendGameStatus();
         }
     }
 
@@ -102,7 +116,7 @@ public class Server_test {
         if (gameStarted) return; // 이미 시작된 경우 실행하지 않음
         gameStarted = true; // 게임 시작 상태 설정
 
-        // 3초 카운트다운
+        // 5초 카운트다운
         for (int countdown = 5; countdown > 0; countdown--) {
             broadcast("게임이 " + countdown + "초 후에 시작됩니다!");
             try {
@@ -123,11 +137,24 @@ public class Server_test {
      * 다음 턴으로 진행
      */
     private synchronized void nextTurn() {
-        // 남은 턴이 없으면 게임 종료
+        // 이전 타이머 취소
+        if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
+            timeUpdateTask.cancel(true);
+        }
+
         if (remainingTurns == 0) {
             endGame();
             return;
         }
+
+        if (clients.isEmpty()) {
+            broadcast("모든 플레이어가 나갔습니다. 게임을 종료합니다.");
+            endGame();
+            return;
+        }
+
+        // 남은 시간을 초기화
+        remainingTime.set(TURN_TIME_LIMIT);
 
         // 현재 턴의 플레이어
         ClientHandler_test currentPlayer = clients.get(currentPlayerIndex);
@@ -144,6 +171,10 @@ public class Server_test {
 
         // 현재 플레이어에게 턴 시작 알림
         currentPlayer.sendMessage("당신의 차례입니다! 단어를 입력하세요.");
+
+        // 남은 시간 업데이트 및 클라이언트에게 전송
+        sendGameStatus();
+
         startTimerForPlayer(currentPlayer); // 제한 시간 설정
     }
 
@@ -152,15 +183,15 @@ public class Server_test {
      * @param currentPlayer 제한 시간을 설정할 플레이어
      */
     private void startTimerForPlayer(ClientHandler_test currentPlayer) {
-        timeLeft = 30; // 제한 시간 (초 단위) 초기화
-
         // 타이머를 설정하여 1초마다 남은 시간 전송
         timeUpdateTask = scheduler.scheduleAtFixedRate(() -> {
             synchronized (Server_test.this) {
-                if (timeLeft > 0) {
-                    currentPlayer.sendMessage("남은 시간: " + timeLeft); // 남은 시간 전송
-                    timeLeft--;
-                } else {
+                int timeLeft = remainingTime.decrementAndGet();
+                if (timeLeft >= 0) {
+                    // 남은 시간 업데이트 및 클라이언트에게 전송
+                    sendGameStatus();
+                }
+                if (timeLeft <= 0) {
                     // 제한 시간 초과 처리
                     broadcast(currentPlayer.getNickname() + " 님이 시간을 초과했습니다! 다음 차례로 넘어갑니다.");
                     if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
@@ -169,7 +200,17 @@ public class Server_test {
                     moveToNextPlayer(); // 다음 플레이어로 이동
                 }
             }
-        }, 0, 1, TimeUnit.SECONDS); // 1초마다 실행
+        }, 1, 1, TimeUnit.SECONDS); // 1초마다 실행
+    }
+
+    /**
+     * 게임 상태를 클라이언트에게 전송하는 메소드
+     */
+    private void sendGameStatus() {
+        String statusMessage = "STATUS_UPDATE|TIME:" + remainingTime.get() + "|TURNS:" + remainingTurns;
+        for (ClientHandler_test client : clients) {
+            client.sendMessage(statusMessage);
+        }
     }
 
     /**
@@ -179,6 +220,7 @@ public class Server_test {
         currentPlayerIndex = (currentPlayerIndex + 1) % clients.size(); // 다음 플레이어 계산
         if (currentPlayerIndex == 0) {
             remainingTurns--; // 모든 플레이어가 턴을 완료하면 턴 감소
+            sendGameStatus(); // 남은 턴 수 업데이트
         }
         nextTurn(); // 다음 턴 시작
     }
@@ -186,24 +228,56 @@ public class Server_test {
     /**
      * 게임 종료
      */
-    private synchronized void endGame() {
+    public synchronized void endGame() {
+        remainingTurns = 0;
+        sendGameStatus(); // 남은 턴 수를 0으로 업데이트하여 클라이언트에게 전송
+
         broadcast("게임이 종료되었습니다!");
 
         // 클라이언트들을 점수 순서대로 정렬
         List<ClientHandler_test> sortedClients = new ArrayList<>(clients);
         sortedClients.sort(Comparator.comparingInt(ClientHandler_test::getScore).reversed());
 
-        // 각 클라이언트에게 순위와 점수 전송
+        // 전체 결과 메시지 생성
+        StringBuilder finalResults = new StringBuilder("최종 결과:\n");
         for (int rank = 0; rank < sortedClients.size(); rank++) {
             ClientHandler_test client = sortedClients.get(rank);
-            client.sendMessage("게임 종료! 당신의 점수: " + client.getScore() + ", 순위: " + (rank + 1));
+            finalResults.append(client.getNickname() + " : " + client.getScore() + "점 / " + (rank + 1) + "위\n");
+        }
+
+        // 각 클라이언트에게 개인 메시지 전송
+        for (int rank = 0; rank < sortedClients.size(); rank++) {
+            ClientHandler_test client = sortedClients.get(rank);
+            StringBuilder personalMessage = new StringBuilder();
+            personalMessage.append(finalResults.toString());
+            personalMessage.append("당신의 최종 점수: " + client.getScore() + "점, 순위: " + (rank + 1) + "위\n");
+
+            if (rank == 0) {
+                personalMessage.append("축하드립니다! 우승입니다!\n");
+            }
+
+            client.sendMessage(personalMessage.toString());
+        }
+
+        // 서버 종료 메시지 전송
+        for (ClientHandler_test client : clients) {
+            client.sendMessage("SERVER_SHUTDOWN");
         }
 
         // 스케줄러 종료 및 상태 초기화
+        if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
+            timeUpdateTask.cancel(true);
+        }
         scheduler.shutdown();
         gameStarted = false;
+        isRunning = false;
 
-        count = 0;
+        // 모든 클라이언트의 연결 종료
+        for (ClientHandler_test client : clients) {
+            client.closeConnection();
+        }
+
+        System.out.println("게임이 종료되었습니다. 서버를 종료합니다.");
     }
 
     /**
@@ -218,10 +292,19 @@ public class Server_test {
             return;
         }
 
+        // "end game" 명령어 처리
+        if (word.equalsIgnoreCase("end game")) {
+            endGame();
+            return;
+        }
+
         // 타이머 취소
         if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
             timeUpdateTask.cancel(true);
         }
+
+        // 남은 시간을 초기화
+        remainingTime.set(TURN_TIME_LIMIT);
 
         // 단어 유효성 검사 및 점수 계산
         String response = (lastWord == null)
@@ -230,10 +313,21 @@ public class Server_test {
 
         if (response.startsWith("유효한 단어")) {
             lastWord = word; // 마지막 단어 갱신
-            player.addScore(Integer.parseInt(response.split(": ")[1])); // 점수 추가
+            int points = Integer.parseInt(response.split(": ")[1]);
+            player.addScore(points);
+
+            // 누적 점수를 포함한 메시지 생성
+            response += ". 누적 점수: " + player.getScore();
         }
 
         player.sendMessage(response);
+
+        // 플레이어가 입력한 단어를 모든 플레이어에게 방송
+        broadcast(player.getNickname() + ": " + word);
+
+        // 남은 시간 업데이트 및 클라이언트에게 전송
+        sendGameStatus();
+
         moveToNextPlayer(); // 다음 플레이어로 이동
     }
 

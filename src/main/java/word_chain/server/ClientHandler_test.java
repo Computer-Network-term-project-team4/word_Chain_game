@@ -65,18 +65,21 @@ public class ClientHandler_test implements Runnable {
     @Override
     public void run() {
         try (
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // 클라이언트 입력 스트림 생성
-            PrintWriter writer = new PrintWriter(socket.getOutputStream(), true) // 클라이언트 출력 스트림 생성
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // 클라이언트 입력 스트림 생성
+                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true) // 클라이언트 출력 스트림 생성
         ) {
             this.out = writer; // 출력 스트림을 클래스 변수로 초기화
 
-            // 클라이언트로부터 닉네임 요청
+            // 닉네임 입력 요청
+            writer.println("닉네임을 입력하세요:");
             nickname = in.readLine(); // 클라이언트가 전송한 닉네임 읽기
             if (nickname == null || nickname.trim().isEmpty()) { // 닉네임이 없거나 유효하지 않은 경우
                 writer.println("유효하지 않은 닉네임입니다. 연결을 종료합니다.");
                 socket.close(); // 소켓 닫기
                 return; // 메서드 종료
             }
+
+            nickname = nickname.trim();
 
             // 닉네임이 유효한 경우
             System.out.println("클라이언트 연결: 닉네임 = " + nickname); // 서버 로그에 닉네임 출력
@@ -88,6 +91,10 @@ public class ClientHandler_test implements Runnable {
             while ((message = in.readLine()) != null) { // 클라이언트로부터 메시지 읽기
                 if (message.equalsIgnoreCase("exit")) { // 'exit' 명령어 처리
                     break; // 반복문 종료
+                }
+                if (message.equalsIgnoreCase("end game")) { // 'end game' 명령어 처리
+                    server.endGame();
+                    break;
                 }
                 server.processWord(message, this); // 서버에서 단어 처리
             }

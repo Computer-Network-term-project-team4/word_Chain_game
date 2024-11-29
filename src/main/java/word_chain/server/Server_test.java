@@ -17,6 +17,7 @@ public class Server_test {
     private int remainingTurns = MAX_TURNS;
     private String lastWord = null; // 마지막 단어
     private char startingLetter; // 랜덤 시작 알파벳
+    private Timer turnTimer; //타이머
 
     public static void main(String[] args) {
         new Server_test().startServer();
@@ -72,6 +73,23 @@ public class Server_test {
         ClientHandler_test currentPlayer = clients.get(currentPlayerIndex);
         broadcast("현재 차례: " + currentPlayer.getNickname());
         currentPlayer.sendMessage("당신의 차례입니다! 단어를 입력하세요.");
+        
+        //타이머
+        if (turnTimer != null) {
+        	turnTimer.cancel();
+        }
+        turnTimer = new Timer();
+        turnTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                synchronized (Server_test.this) {
+                    broadcast(currentPlayer.getNickname() + " 님이 시간을 초과했습니다! 다음 차례로 넘어갑니다.");
+                    currentPlayerIndex = (currentPlayerIndex + 1) % clients.size();
+                    remainingTurns--;
+                    nextTurn();
+                }
+            }
+        }, 30000); // 30초 제한 시간
     }
 
     private synchronized void endGame() {
@@ -82,6 +100,10 @@ public class Server_test {
         for (int rank = 0; rank < sortedClients.size(); rank++) {
             ClientHandler_test client = sortedClients.get(rank);
             client.sendMessage("게임 종료! 당신의 점수: " + client.getScore() + ", 순위: " + (rank + 1));
+        }
+        
+        if (turnTimer != null) {
+        	turnTimer.cancel();
         }
     }
 
@@ -102,6 +124,11 @@ public class Server_test {
             lastWord = word;
             int points = Integer.parseInt(response.split(": ")[1]);
             player.addScore(points);
+            
+            //타이머 리셋
+            if (turnTimer !=null) {
+            	turnTimer.cancel();
+            }
         }
 
         player.sendMessage(response);
@@ -153,6 +180,9 @@ public class Server_test {
 
     private void shutdownServer() {
         broadcast("서버가 종료됩니다.");
+        if (turnTimer != null) {
+        	turnTimer.cancel();
+        }
         for (ClientHandler_test client : clients) {
             client.closeConnection();
         }

@@ -32,6 +32,7 @@ public class KkuTuGameClient_test {
         connectToServer();
     }
 
+    // GUI 초기화
     private void setupGUI() {
         frame = new JFrame("끝말잇기 게임 클라이언트");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -44,48 +45,60 @@ public class KkuTuGameClient_test {
             }
         });
 
-        // 상단 패널 설정
-        JPanel topPanel = new JPanel();
-        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        // GroupLayout을 사용하여 UI 구성
+        JPanel mainPanel = new JPanel();
+        GroupLayout layout = new GroupLayout(mainPanel);
+        mainPanel.setLayout(layout);
+        layout.setAutoCreateGaps(true);
+        layout.setAutoCreateContainerGaps(true);
 
-        JPanel firstRow = new JPanel(new GridLayout(1, 3));
+        // UI 요소 초기화
         nicknameLabel = new JLabel("닉네임: ");
         timerLabel = new JLabel("타이머: -");
         turnsLabel = new JLabel("남은 턴 수: -");
-        firstRow.add(nicknameLabel);
-        firstRow.add(timerLabel);
-        firstRow.add(turnsLabel);
-
         participantsLabel = new JLabel("참여자: -");
-        participantsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        topPanel.add(firstRow);
-        topPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        topPanel.add(participantsLabel);
-
-        frame.add(topPanel, BorderLayout.NORTH);
-
-        // 채팅 영역 설정
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         JScrollPane chatScrollPane = new JScrollPane(chatArea);
-        frame.add(chatScrollPane, BorderLayout.CENTER);
 
-        // 하단 패널 설정
-        JPanel bottomPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
-        inputField.addActionListener(e -> sendMessage());
         inputField.setEnabled(false);
-        bottomPanel.add(inputField, BorderLayout.CENTER);
+        inputField.addActionListener(e -> sendMessage());
 
         scoreLabel = new JLabel("누적 점수: 0");
-        bottomPanel.add(scoreLabel, BorderLayout.SOUTH);
 
-        frame.add(bottomPanel, BorderLayout.SOUTH);
+        // GroupLayout으로 레이아웃 설정
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(nicknameLabel)
+                    .addComponent(timerLabel)
+                    .addComponent(turnsLabel))
+                .addComponent(participantsLabel)
+                .addComponent(chatScrollPane)
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(inputField)
+                    .addComponent(scoreLabel))
+        );
 
+        layout.setVerticalGroup(
+            layout.createSequentialGroup()
+                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                    .addComponent(nicknameLabel)
+                    .addComponent(timerLabel)
+                    .addComponent(turnsLabel))
+                .addComponent(participantsLabel)
+                .addComponent(chatScrollPane)
+                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                    .addComponent(inputField)
+                    .addComponent(scoreLabel))
+        );
+
+        frame.add(mainPanel);
         frame.setVisible(true);
     }
 
+    // 서버 연결
     private void connectToServer() {
         try {
             socket = new Socket("localhost", 12345);
@@ -108,6 +121,7 @@ public class KkuTuGameClient_test {
         }
     }
 
+    // 닉네임 입력
     private void promptForNickname() {
         nickname = JOptionPane.showInputDialog(frame, "닉네임을 입력하세요:");
         if (nickname != null && !nickname.trim().isEmpty()) {
@@ -121,6 +135,7 @@ public class KkuTuGameClient_test {
         }
     }
 
+    // 서버 메시지 수신
     private void listenToServer() {
         try {
             String message;
@@ -141,24 +156,29 @@ public class KkuTuGameClient_test {
         }
     }
 
+    // 서버 메시지 처리
     private void handleServerMessage(String message) {
         SwingUtilities.invokeLater(() -> {
             if (message.equals("현재 게임이 진행 중입니다. 접속할 수 없습니다.")) {
                 JOptionPane.showMessageDialog(frame, message, "연결 불가", JOptionPane.ERROR_MESSAGE);
                 closeResources();
+            } else if (message.equals("대기 중입니다.")) {
+                inputField.setEnabled(false);
+                chatArea.append("대기 중입니다. 다른 플레이어를 기다리는 중...\n");
             } else {
                 chatArea.append(message + "\n");
+                chatArea.setCaretPosition(chatArea.getDocument().getLength()); // 자동 스크롤
                 handleGameMessages(message);
             }
         });
     }
 
+    // 게임 메시지 처리
     private void handleGameMessages(String message) {
         if (message.contains("당신의 차례입니다!")) {
             inputField.setEnabled(true);
-            inputField.requestFocus();
+            inputField.requestFocusInWindow(); // 입력 필드에 포커스
         } else if (message.contains("현재 당신의 차례가 아닙니다.") ||
-                   message.contains("대기 중입니다.") ||
                    message.contains("시간이 초과되었습니다") ||
                    message.contains("당신은 게임에서 나갔습니다.")) {
             inputField.setEnabled(false);
@@ -171,63 +191,46 @@ public class KkuTuGameClient_test {
         }
     }
 
+    // 상태 업데이트
     private void updateStatus(String statusMessage) {
         String[] parts = statusMessage.split("\\|");
-        int timeLeft = -1;
-        int turnsLeft = -1;
-
         for (String part : parts) {
             if (part.startsWith("TIME:")) {
-                timeLeft = Integer.parseInt(part.substring(5));
+                timerLabel.setText("타이머: " + part.substring(5));
             } else if (part.startsWith("TURNS:")) {
-                turnsLeft = Integer.parseInt(part.substring(6));
+                turnsLabel.setText("남은 턴 수: " + part.substring(6));
             }
         }
-
-        final int finalTimeLeft = timeLeft;
-        final int finalTurnsLeft = turnsLeft;
-
-        SwingUtilities.invokeLater(() -> {
-            if (finalTimeLeft >= 0) {
-                timerLabel.setText("타이머: " + finalTimeLeft + "초");
-            }
-            if (finalTurnsLeft >= 0) {
-                turnsLabel.setText("남은 턴 수: " + finalTurnsLeft);
-            }
-        });
     }
 
+    // 참여자 업데이트
     private void updateParticipants(String participantsMessage) {
         String[] parts = participantsMessage.split("\\|");
         if (parts.length > 1) {
-            String participants = parts[1].trim();
-            SwingUtilities.invokeLater(() -> participantsLabel.setText("참여자: " + participants));
+            participantsLabel.setText("참여자: " + parts[1].trim());
         }
     }
 
+    // 점수 업데이트
     private void updateScore(String message) {
         int index = message.indexOf("누적 점수: ");
         if (index != -1) {
             String scoreStr = message.substring(index + 7).trim().split("\\s+")[0];
-            try {
-                int cumulativeScore = Integer.parseInt(scoreStr);
-                SwingUtilities.invokeLater(() -> scoreLabel.setText("누적 점수: " + cumulativeScore));
-            } catch (NumberFormatException e) {
-                System.err.println("점수 파싱 오류: " + e.getMessage());
-            }
+            scoreLabel.setText("누적 점수: " + scoreStr);
         }
     }
 
+    // 메시지 전송
     private void sendMessage() {
         String message = inputField.getText().trim();
         if (!message.isEmpty() && out != null) {
-            out.println(message);
+            out.println(message.toLowerCase());
             inputField.setText("");
             inputField.setEnabled(false);
-            timerLabel.setText("타이머: -");
         }
     }
 
+    // 리소스 정리
     private void closeResources() {
         try {
             if (out != null) out.close();

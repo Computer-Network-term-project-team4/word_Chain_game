@@ -146,9 +146,13 @@ public class KkuTuGameClient_test {
                 } else if (message.startsWith("PARTICIPANTS_UPDATE")) {
                     updateParticipants(message);
                 } else if (message.contains("누적 점수: ")) {
+                    
                     updateScore(message);
+                    
+
                 } else {
                     handleServerMessage(message);
+                   
                 }
             }
         } catch (IOException e) {
@@ -166,6 +170,7 @@ public class KkuTuGameClient_test {
                 inputField.setEnabled(false);
                 chatArea.append("대기 중입니다. 다른 플레이어를 기다리는 중...\n");
             } else {
+                System.out.println(message);
                 chatArea.append(message + "\n");
                 chatArea.setCaretPosition(chatArea.getDocument().getLength()); // 자동 스크롤
                 handleGameMessages(message);
@@ -214,14 +219,17 @@ public class KkuTuGameClient_test {
     // 점수 업데이트
     private void updateScore(String message) {
         int index = message.indexOf("누적 점수: ");
+        String scoreStr = message.substring(index + 7).trim().split("\\s+")[0];
         if (index != -1) {
-            String scoreStr = message.substring(index + 7).trim().split("\\s+")[0];
+            
             scoreLabel.setText("누적 점수: " + scoreStr);
         }
+        chatArea.append("\n 유효한 단어입니다. 점수: "+ scoreStr);
     }
 
     // 메시지 전송
     private void sendMessage() {
+        chatArea.append("판별 중 입니다....\n");
         String message = inputField.getText().trim();
         if (!message.isEmpty() && out != null) {
             out.println(message.toLowerCase());

@@ -15,7 +15,7 @@ public class GameScore {
 
     public String processFirstWord(String word, char startingLetter) {
         if (word == null || word.isEmpty() || Character.toLowerCase(word.charAt(0)) != Character.toLowerCase(startingLetter)) {
-            return "첫 번째 단어는 '" + startingLetter + "'로 시작해야 합니다.";
+            return "첫 번째 글자는 '" + startingLetter + "'로 시작해야 합니다.";
         }
         if (!dictionaryAPI.isValidWord(word.toLowerCase())) {
             return "유효하지 않은 단어입니다.";

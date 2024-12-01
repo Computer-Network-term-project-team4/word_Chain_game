@@ -106,7 +106,7 @@ public class Server_test {
                 }
             }
             startingLetter = (char) ('a' + new Random().nextInt(26));
-            broadcast("첫 번째 단어는 '" + startingLetter + "'로 시작해야 합니다.");
+            broadcast("첫 번째 글자는 '" + startingLetter + "'로 시작해야 합니다.");
             nextTurn();
         }).start();
     }
@@ -136,7 +136,7 @@ public class Server_test {
             if (lastWord != null) {
                 broadcast("다음 단어는 '" + lastWord.charAt(lastWord.length() - 1) + "'로 시작해야 합니다.");
             } else {
-                broadcast("첫 번째 단어는 '" + startingLetter + "'로 시작해야 합니다.");
+                broadcast("첫 번째 글자는 '" + startingLetter + "'로 시작해야 합니다.");
             }
 
             currentPlayer.sendMessage("당신의 차례입니다! 단어를 입력하세요.");
@@ -203,11 +203,13 @@ public class Server_test {
                 lastWord = word;
                 int points = Integer.parseInt(response.split(": ")[1]);
                 player.addScore(points);
-                response += ". 누적 점수: " + player.getScore();
+                response += ".누적 점수: " + player.getScore();
             }
 
+
+            System.out.println(response);
             player.sendMessage(response);
-            broadcast(player.getNickname() + ": " + word);
+            broadcast("\n"+player.getNickname() + ": " + word);
             sendGameStatus();
             moveToNextPlayer();
         }

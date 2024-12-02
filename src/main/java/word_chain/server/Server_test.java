@@ -110,7 +110,15 @@ public class Server_test {
             nextTurn();
         }).start();
     }
-
+    public synchronized boolean isNicknameDuplicate(String nickname) {
+        for (ClientHandler_test client : clients) {
+            if (nickname.equalsIgnoreCase(client.getNickname())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     private synchronized void nextTurn() {
         if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
             timeUpdateTask.cancel(true);

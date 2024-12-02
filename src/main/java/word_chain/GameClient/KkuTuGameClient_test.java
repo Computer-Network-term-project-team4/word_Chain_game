@@ -20,8 +20,11 @@ public class KkuTuGameClient_test {
     private PrintWriter out;
     private BufferedReader in;
     private Socket socket;
+    
 
     private String nickname;
+    private int attempt = 0; // 닉네임이 설정되었는지 여부
+    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(KkuTuGameClient_test::new);
@@ -123,17 +126,20 @@ public class KkuTuGameClient_test {
 
     // 닉네임 입력
     private void promptForNickname() {
-        nickname = JOptionPane.showInputDialog(frame, "닉네임을 입력하세요:");
-        if (nickname != null && !nickname.trim().isEmpty()) {
-            out.println(nickname.trim());
-            nicknameLabel.setText("닉네임: " + nickname.trim());
-            frame.setTitle(nickname + "의 끝말잇기 게임 클라이언트");
-        } else {
-            JOptionPane.showMessageDialog(frame, "유효하지 않은 닉네임입니다. 종료합니다.", "닉네임 오류", JOptionPane.ERROR_MESSAGE);
-            inputField.setEnabled(false);
-            closeResources();
-        }
+        SwingUtilities.invokeLater(() -> {
+            nickname = JOptionPane.showInputDialog(frame, "닉네임을 입력하세요:");
+            if (nickname != null && !nickname.trim().isEmpty()) {
+                out.println(nickname.trim());
+                // nicknameLabel과 타이틀 설정은 서버의 확인 후에 수행
+            } else {
+                JOptionPane.showMessageDialog(frame, "유효하지 않은 닉네임입니다. 종료합니다.", "닉네임 오류", JOptionPane.ERROR_MESSAGE);
+                inputField.setEnabled(false);
+                closeResources();
+            }
+            attempt++;
+        });
     }
+
 
     // 서버 메시지 수신
     private void listenToServer() {
@@ -160,23 +166,42 @@ public class KkuTuGameClient_test {
         }
     }
 
-    // 서버 메시지 처리
-    private void handleServerMessage(String message) {
-        SwingUtilities.invokeLater(() -> {
-            if (message.equals("현재 게임이 진행 중입니다. 접속할 수 없습니다.")) {
-                JOptionPane.showMessageDialog(frame, message, "연결 불가", JOptionPane.ERROR_MESSAGE);
-                closeResources();
-            } else if (message.equals("대기 중입니다.")) {
-                inputField.setEnabled(false);
-                chatArea.append("대기 중입니다. 다른 플레이어를 기다리는 중...\n");
-            } else {
-                System.out.println(message);
-                chatArea.append(message + "\n");
-                chatArea.setCaretPosition(chatArea.getDocument().getLength()); // 자동 스크롤
-                handleGameMessages(message);
+// 서버 메시지 처리
+private void handleServerMessage(String message) {
+    SwingUtilities.invokeLater(() -> {
+        if (message.equals("현재 게임이 진행 중입니다. 접속할 수 없습니다.")) {
+            JOptionPane.showMessageDialog(frame, message, "연결 불가", JOptionPane.ERROR_MESSAGE);
+            closeResources();
+        } else if (message.equals("대기 중입니다.")) {
+            inputField.setEnabled(false);
+            chatArea.append("대기 중입니다. 다른 플레이어를 기다리는 중...\n");
+        } else if (message.equals("닉네임을 입력하세요:")) {
+            if(attempt == 0){
+            promptForNickname();}
+            else{
             }
-        });
-    }
+        } else if (message.equals("유효하지 않은 닉네임입니다. 연결을 종료합니다.")) {
+            JOptionPane.showMessageDialog(frame, message, "닉네임 오류", JOptionPane.ERROR_MESSAGE);
+            closeResources();
+        } else if (message.equals("이미 사용 중인 닉네임입니다. 닉네임을 다시 입력하세요.")) {
+            JOptionPane.showMessageDialog(frame, message, "닉네임 중복", JOptionPane.WARNING_MESSAGE);
+            promptForNickname(); // 닉네임 중복 시 다시 입력 요청
+            
+        } else if (message.equals("닉네임이 성공적으로 설정되었습니다.")) {
+            
+            nicknameLabel.setText("닉네임: " + nickname.trim());
+            frame.setTitle(nickname + "의 끝말잇기 게임 클라이언트");
+            chatArea.append("닉네임이 설정되었습니다. 게임을 기다리고 있습니다...\n");
+            inputField.setEnabled(false);
+        } else {
+            System.out.println(message);
+            chatArea.append(message + "\n");
+            chatArea.setCaretPosition(chatArea.getDocument().getLength()); // 자동 스크롤
+            handleGameMessages(message);
+        }
+    });
+}
+
 
     // 게임 메시지 처리
     private void handleGameMessages(String message) {

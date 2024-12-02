@@ -46,21 +46,32 @@ public class ClientHandler_test implements Runnable {
         ) {
             this.out = writer;
 
-            // 닉네임 입력 요청
+        // 닉네임 입력 및 중복 검사
+        while (true) {
             writer.println("닉네임을 입력하세요:");
-            nickname = in.readLine();
+            String inputNickname = in.readLine();
 
-            if (nickname == null || nickname.trim().isEmpty()) {
+            if (inputNickname == null || inputNickname.trim().isEmpty()) {
                 writer.println("유효하지 않은 닉네임입니다. 연결을 종료합니다.");
                 return;
             }
 
-            nickname = nickname.trim();
-            System.out.println("클라이언트 연결: 닉네임 = " + nickname);
-            server.broadcast(nickname + " 님이 접속했습니다.");
-            server.broadcastParticipants();
-            server.updateClientStates();
+            inputNickname = inputNickname.trim();
 
+            synchronized (server) {
+                if (server.isNicknameDuplicate(inputNickname)) {
+                    writer.println("이미 사용 중인 닉네임입니다. 닉네임을 다시 입력하세요.");
+                } else {
+                    this.nickname = inputNickname;
+                    break;
+                }
+            }
+        }
+
+        System.out.println("클라이언트 연결: 닉네임 = " + nickname);
+        server.broadcast(nickname + " 님이 접속했습니다.");
+        server.broadcastParticipants();
+        server.updateClientStates();
             String message;
             while ((message = in.readLine()) != null) {
                 if (message.equalsIgnoreCase("exit")) {

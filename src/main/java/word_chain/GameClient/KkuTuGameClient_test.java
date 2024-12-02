@@ -31,6 +31,8 @@ public class KkuTuGameClient_test {
     private BufferedReader in;
     // Socket for server connection
     private Socket socket;
+    private String scoreStr; // add field to save score
+
 
     // User's nickname
     private String nickname;
@@ -328,7 +330,7 @@ public class KkuTuGameClient_test {
         int index = message.indexOf("누적 점수: ");
         if (index != -1) {
             // Extract the score value from the message
-            String scoreStr = message.substring(index + 7).trim().split("\\s+")[0];
+            scoreStr = message.substring(index + 7).trim().split("\\s+")[0];
             // Update the score label with the new score
             scoreLabel.setText("누적 점수: " + scoreStr); // "Total Score: [score]"
         }
@@ -355,6 +357,11 @@ public class KkuTuGameClient_test {
             chatArea.setBackground(defaultChatAreaBackground);
             // Disable the input field until it's the user's turn again
             inputField.setEnabled(false);
+
+            // Example: Use scoreStr after sending a message
+            if (scoreStr != null) {
+                chatArea.append("현재 점수는 " + scoreStr + "입니다.\n"); // "Your current score is [score]."
+            }
         }
     }
 

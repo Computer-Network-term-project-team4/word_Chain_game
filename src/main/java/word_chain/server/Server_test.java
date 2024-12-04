@@ -21,162 +21,161 @@ public class Server_test {
     private static final int PORT = 12345;              // Server listening port
     private static final int MAX_PLAYERS = 4;           // Maximum number of players allowed
     private static final int MAX_TURNS = 5;             // Maximum number of turns per player
-    private static final int TURN_TIME_LIMIT = 30;      // Time limit (in seconds) for each turn
-
-    // List to keep track of connected clients
-    private final List<ClientHandler_test> clients = Collections.synchronizedList(new ArrayList<>());
-    // Instance of GameScore to manage game scoring logic
-    private final GameScore gameScore = new GameScore();
-    // ScheduledExecutorService to handle turn timing and periodic tasks
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-    // Server state variables
-    private boolean isRunning = true;                   // Indicates if the server is running
-    private boolean gameStarted = false;                // Indicates if the game has started
-    private int currentPlayerIndex = 0;                 // Index of the current player in the clients list
-    private int remainingTurns = MAX_TURNS;             // Remaining number of turns in the game
-    private AtomicInteger remainingTime = new AtomicInteger(TURN_TIME_LIMIT); // Time left for the current turn
-    private String lastWord = null;                      // The last valid word played in the game
-    private char startingLetter;                         // The starting letter for the first word
-    private ScheduledFuture<?> timeUpdateTask;           // Scheduled task for updating turn time
-
-    /**
-     * Entry point of the server application.
-     * Initializes and starts the server.
-     *
-     * @param args Command-line arguments (not used).
-     */
-    public static void main(String[] args) {
-        new Server_test().startServer();
-    }
-
-    /**
-     * Broadcasts a message to all connected clients.
-     * This method is synchronized to ensure thread safety when accessing the clients list.
-     *
-     * @param message The message to broadcast.
-     */
-    public synchronized void broadcast(String message) {
-        synchronized (clients) {
-            for (ClientHandler_test client : clients) {
-                client.sendMessage(message);
-            }
+    private static int TURN_TIME_LIMIT = 5;      // Time limit (in seconds) for each turn
+    
+        // List to keep track of connected clients
+        private final List<ClientHandler_test> clients = Collections.synchronizedList(new ArrayList<>());
+        // Instance of GameScore to manage game scoring logic
+        private final GameScore gameScore = new GameScore();
+        // ScheduledExecutorService to handle turn timing and periodic tasks
+        private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    
+        // Server state variables
+        private boolean isRunning = true;                   // Indicates if the server is running
+        private boolean gameStarted = false;                // Indicates if the game has started
+        private int currentPlayerIndex = 0;                 // Index of the current player in the clients list
+        private int remainingTurns = MAX_TURNS;             // Remaining number of turns in the game
+        private AtomicInteger remainingTime = new AtomicInteger(TURN_TIME_LIMIT); // Time left for the current turn
+        private String lastWord = null;                      // The last valid word played in the game
+        private char startingLetter;                         // The starting letter for the first word
+        private ScheduledFuture<?> timeUpdateTask;           // Scheduled task for updating turn time
+    
+        /**
+         * Entry point of the server application.
+         * Initializes and starts the server.
+         *
+         * @param args Command-line arguments (not used).
+         */
+        public static void main(String[] args) {
+            new Server_test().startServer();
         }
-    }
-
-    /**
-     * Broadcasts the list of current participants to all clients.
-     * Formats the participant list as a comma-separated string.
-     */
-    public synchronized void broadcastParticipants() {
-        StringBuilder participantsMessage = new StringBuilder("PARTICIPANTS_UPDATE|");
-        synchronized (clients) {
-            int count = 0;
-            for (ClientHandler_test client : clients) {
-                String nickname = client.getNickname();
-                if (nickname != null && !nickname.trim().isEmpty()) {
-                    participantsMessage.append(nickname).append(",");
-                    count++;
+    
+        /**
+         * Broadcasts a message to all connected clients.
+         * This method is synchronized to ensure thread safety when accessing the clients list.
+         *
+         * @param message The message to broadcast.
+         */
+        public synchronized void broadcast(String message) {
+            synchronized (clients) {
+                for (ClientHandler_test client : clients) {
+                    client.sendMessage(message);
                 }
             }
-            if (count > 0) {
-                participantsMessage.setLength(participantsMessage.length() - 1); // Remove the trailing comma
-            } else {
-                participantsMessage.append("-");
-            }
-            broadcast(participantsMessage.toString());
         }
-    }
-
-    /**
-     * Removes a client from the server's client list.
-     * Notifies other clients about the disconnection and handles turn progression if necessary.
-     *
-     * @param client The client to remove.
-     */
-    public synchronized void removeClient(ClientHandler_test client) {
-        synchronized (clients) {
-            int removedIndex = clients.indexOf(client);
-            clients.remove(client);
-            client.sendMessage("당신은 게임에서 나갔습니다."); // "You have left the game."
-            broadcast(client.getNickname() + " 님이 나갔습니다."); // "[Nickname] has left the game."
-            System.out.println("클라이언트 연결 종료: 닉네임 = " + client.getNickname()); // "Client disconnected: Nickname = [Nickname]"
-
-            // If no clients are connected, end the game
-            if (clients.isEmpty()) {
+    
+        /**
+         * Broadcasts the list of current participants to all clients.
+         * Formats the participant list as a comma-separated string.
+         */
+        public synchronized void broadcastParticipants() {
+            StringBuilder participantsMessage = new StringBuilder("PARTICIPANTS_UPDATE|");
+            synchronized (clients) {
+                int count = 0;
+                for (ClientHandler_test client : clients) {
+                    String nickname = client.getNickname();
+                    if (nickname != null && !nickname.trim().isEmpty()) {
+                        participantsMessage.append(nickname).append(",");
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    participantsMessage.setLength(participantsMessage.length() - 1); // Remove the trailing comma
+                } else {
+                    participantsMessage.append("-");
+                }
+                broadcast(participantsMessage.toString());
+            }
+        }
+    
+        /**
+         * Removes a client from the server's client list.
+         * Notifies other clients about the disconnection and handles turn progression if necessary.
+         *
+         * @param client The client to remove.
+         */
+        public synchronized void removeClient(ClientHandler_test client) {
+            synchronized (clients) {
+                int removedIndex = clients.indexOf(client);
+                clients.remove(client);
+                client.sendMessage("당신은 게임에서 나갔습니다."); // "You have left the game."
+                broadcast(client.getNickname() + " 님이 나갔습니다."); // "[Nickname] has left the game."
+                System.out.println("클라이언트 연결 종료: 닉네임 = " + client.getNickname()); // "Client disconnected: Nickname = [Nickname]"
+    
+                // If no clients are connected, end the game
+                if (clients.isEmpty()) {
+                    endGame();
+                    return;
+                }
+    
+                // If the removed client was the current player, adjust the currentPlayerIndex
+                if (removedIndex == currentPlayerIndex) {
+                    currentPlayerIndex %= clients.size();
+                    nextTurn();
+                } else if (removedIndex < currentPlayerIndex) {
+                    currentPlayerIndex--;
+                }
+    
+                sendGameStatus();
+            }
+        }
+    
+        /**
+         * Starts the game if it hasn't already started.
+         * Initiates a 5-second countdown before beginning the first turn.
+         */
+        public synchronized void startGame() {
+            if (gameStarted) return; // Prevent multiple game starts
+            gameStarted = true;
+    
+            // Start a new thread for the 5-second countdown
+            new Thread(() -> {
+                for (int countdown = 5; countdown > 0; countdown--) {
+                    broadcast("게임이 " + countdown + "초 후에 시작됩니다!"); // "The game will start in [countdown] seconds!"
+                    try {
+                        Thread.sleep(1000); // Wait for 1 second
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        System.err.println("카운트다운 중 인터럽트 발생: " + e.getMessage()); // "Interrupted during countdown: [Error Message]"
+                    }
+                }
+                // Randomly select a starting letter for the first word
+                startingLetter = (char) ('a' + new Random().nextInt(26));
+                broadcast("첫 번째 글자는 '" + startingLetter + "'로 시작해야 합니다."); // "The first word must start with '" + startingLetter + "'."
+                nextTurn(); // Proceed to the first turn
+            }).start();
+        }
+    
+        /**
+         * Checks if a given nickname is already in use by another client.
+         *
+         * @param nickname The nickname to check.
+         * @return True if the nickname is duplicate, false otherwise.
+         */
+        public synchronized boolean isNicknameDuplicate(String nickname) {
+            for (ClientHandler_test client : clients) {
+                if (nickname.equalsIgnoreCase(client.getNickname())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    
+        /**
+         * Advances the game to the next player's turn.
+         * Handles game termination if maximum turns are reached.
+         */
+        private synchronized void nextTurn() {
+            // Cancel any existing time update task for the previous turn
+            if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
+                timeUpdateTask.cancel(true);
+            }
+    
+            // If no turns remain, end the game
+            if (remainingTurns == 0) {
                 endGame();
                 return;
             }
-
-            // If the removed client was the current player, adjust the currentPlayerIndex
-            if (removedIndex == currentPlayerIndex) {
-                currentPlayerIndex %= clients.size();
-                nextTurn();
-            } else if (removedIndex < currentPlayerIndex) {
-                currentPlayerIndex--;
-            }
-
-            sendGameStatus();
-        }
-    }
-
-    /**
-     * Starts the game if it hasn't already started.
-     * Initiates a 5-second countdown before beginning the first turn.
-     */
-    public synchronized void startGame() {
-        if (gameStarted) return; // Prevent multiple game starts
-        gameStarted = true;
-
-        // Start a new thread for the 5-second countdown
-        new Thread(() -> {
-            for (int countdown = 5; countdown > 0; countdown--) {
-                broadcast("게임이 " + countdown + "초 후에 시작됩니다!"); // "The game will start in [countdown] seconds!"
-                try {
-                    Thread.sleep(1000); // Wait for 1 second
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.err.println("카운트다운 중 인터럽트 발생: " + e.getMessage()); // "Interrupted during countdown: [Error Message]"
-                }
-            }
-            // Randomly select a starting letter for the first word
-            startingLetter = (char) ('a' + new Random().nextInt(26));
-            broadcast("첫 번째 글자는 '" + startingLetter + "'로 시작해야 합니다."); // "The first word must start with '" + startingLetter + "'."
-            nextTurn(); // Proceed to the first turn
-        }).start();
-    }
-
-    /**
-     * Checks if a given nickname is already in use by another client.
-     *
-     * @param nickname The nickname to check.
-     * @return True if the nickname is duplicate, false otherwise.
-     */
-    public synchronized boolean isNicknameDuplicate(String nickname) {
-        for (ClientHandler_test client : clients) {
-            if (nickname.equalsIgnoreCase(client.getNickname())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Advances the game to the next player's turn.
-     * Handles game termination if maximum turns are reached.
-     */
-    private synchronized void nextTurn() {
-        // Cancel any existing time update task for the previous turn
-        if (timeUpdateTask != null && !timeUpdateTask.isCancelled()) {
-            timeUpdateTask.cancel(true);
-        }
-
-        // If no turns remain, end the game
-        if (remainingTurns == 0) {
-            endGame();
-            return;
-        }
-
         synchronized (clients) {
             if (clients.isEmpty()) {
                 broadcast("모든 플레이어가 나갔습니다. 게임을 종료합니다."); // "All players have left. Ending the game."
@@ -184,7 +183,7 @@ public class Server_test {
                 return;
             }
 
-            remainingTime.set(TURN_TIME_LIMIT); // Reset the turn time
+            remainingTime.set(TURN_TIME_LIMIT* remainingTurns+5); // Reset the turn time
             ClientHandler_test currentPlayer = clients.get(currentPlayerIndex); // Get the current player
 
             broadcast("현재 차례: " + currentPlayer.getNickname()); // "Current turn: [Nickname]"

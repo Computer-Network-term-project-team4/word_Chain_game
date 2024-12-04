@@ -174,6 +174,7 @@ public class KkuTuGameClient_test {
             if (nickname != null && !nickname.trim().isEmpty()) {
                 // If a valid nickname is entered, send it to the server
                 out.println(nickname.trim());
+                frame.setTitle(nickname + "의 끝말잇기 게임 클라이언트"); // "[nickname]'s Word Chain Game Client"
                 // Further UI updates (like setting nicknameLabel) will be handled upon server confirmation
             } else {
                 // If the nickname is invalid or input is canceled, show an error message
@@ -268,7 +269,6 @@ public class KkuTuGameClient_test {
         if (message.contains("당신의 차례입니다!")) { // "It's your turn!"
             inputField.setEnabled(true); // Enable the input field for user input
             inputField.requestFocusInWindow(); // Request focus on the input field for immediate typing
-
             // Change the chatArea background color to a light yellow to indicate it's the user's turn
             chatArea.setBackground(new Color(255, 255, 200)); // Light Yellow
         } else if (message.contains("현재 당신의 차례가 아닙니다.") || // "It's not your turn right now."
@@ -286,6 +286,12 @@ public class KkuTuGameClient_test {
         } else if (message.equals("SERVER_SHUTDOWN")) { // "SERVER_SHUTDOWN" signal from the server
             inputField.setEnabled(false); // Disable the input field
             chatArea.setBackground(defaultChatAreaBackground); // Reset chatArea background color
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    Thread.sleep(5000); // Wait for 5 seconds
+                } catch (InterruptedException ignored) {}
+                closeResources(); // Close client resources
+            });
             closeResources(); // Close client resources as the server is shutting down
         }
     }
@@ -353,10 +359,11 @@ public class KkuTuGameClient_test {
             out.println(message.toLowerCase());
             // Clear the input field after sending the message
             inputField.setText("");
+             // Disable the input field until it's the user's turn again
+             inputField.setEnabled(false);
             // Reset the chatArea background color to default as the user's turn is over
             chatArea.setBackground(defaultChatAreaBackground);
-            // Disable the input field until it's the user's turn again
-            inputField.setEnabled(false);
+
 
             // Example: Use scoreStr after sending a message
             if (scoreStr != null) {
